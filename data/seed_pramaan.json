@@ -1,0 +1,24 @@
+{
+  "pramaan_records": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "topic_slug": "33-koti-devatas",
+      "category": "Etymology",
+      "primary_source": "Brihadaranyaka Upanishad",
+      "source_citation": "Chapter 3, Verse 9.1",
+      "original_script_text": "त्रयस्त्रिंशत् कोटि",
+      "translations": {
+        "en": {
+          "title": "33 Koti Devatas",
+          "popular_myth": "Hindus worship 330 million (33 crore) distinct physical gods.",
+          "verified_root": "In Vedic Sanskrit, 'Koti' denotes 'supreme category' or 'class'. It maps to 33 cosmic forces: 8 Vasus, 11 Rudras, 12 Adityas, and 2 Ashvins.",
+          "summary_bullets": [
+            "Koti means 'supreme category', not the number 10 million (crore).",
+            "The 33 categories represent universal cosmic and natural forces.",
+            "It is a system of ancient natural philosophy, not polytheistic population counting."
+          ]
+        }
+      }
+    }
+  ]
+}
