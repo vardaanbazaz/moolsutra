@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ShieldCheck,
   Plus,
@@ -13,8 +14,9 @@ import {
   CheckCircle2,
   AlertCircle,
   BookOpen,
+  LogIn,
 } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/utils/supabase/client";
 import { PramaanRecord } from "./PramaanCard";
 
 interface ComposeSutraProps {
@@ -23,6 +25,11 @@ interface ComposeSutraProps {
 
 export default function ComposeSutra({ onPostPublished }: ComposeSutraProps) {
   const router = useRouter();
+  const supabase = createClient();
+
+  // User Auth State
+  const [user, setUser] = useState<any>(null);
+  const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
 
   // State Management
   const [cards, setCards] = useState<string[]>([""]);
@@ -38,6 +45,35 @@ export default function ComposeSutra({ onPostPublished }: ComposeSutraProps) {
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+
+  // Check user authentication on mount & subscribe to changes
+  useEffect(() => {
+    const fetchUser = async () => {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      setUser(currentUser);
+      if (currentUser?.email) {
+        setAuthorHandle(`@${currentUser.email.split("@")[0]}`);
+      }
+      setCheckingAuth(false);
+    };
+
+    fetchUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user?.email) {
+        setAuthorHandle(`@${session.user.email.split("@")[0]}`);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Fetch Pramaan records for selection when modal opens
   useEffect(() => {
@@ -137,6 +173,11 @@ export default function ComposeSutra({ onPostPublished }: ComposeSutraProps) {
     e.preventDefault();
     setStatusMessage(null);
 
+    if (!user) {
+      setStatusMessage({ type: "error", text: "You must be signed in to publish a Sutra." });
+      return;
+    }
+
     const validCards = cards.map((c) => c.trim()).filter((c) => c.length > 0);
     if (validCards.length === 0) {
       setStatusMessage({ type: "error", text: "Please enter text for at least one card." });
@@ -200,6 +241,34 @@ export default function ComposeSutra({ onPostPublished }: ComposeSutraProps) {
       setIsSubmitting(false);
     }
   };
+
+  // If user is not authenticated, display clean 'Sign in to compose a Sutra' state
+  if (!checkingAuth && !user) {
+    return (
+      <div className="w-full max-w-2xl rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900/60 space-y-4 shadow-xs">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+          <ShieldCheck className="h-6 w-6" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-50">
+            Sign in to compose a Sutra
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
+            You must be authenticated to publish thought threads and attach verified truth citations to the Town Square.
+          </p>
+        </div>
+        <div className="pt-1 flex items-center justify-center">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 text-xs font-semibold text-zinc-50 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-all shadow-xs"
+          >
+            <LogIn className="h-3.5 w-3.5" />
+            <span>Sign In to Compose</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90 transition-all space-y-5">

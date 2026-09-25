@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import { Layers, ShieldCheck, Cpu } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import ScriptToggle from "./ScriptToggle";
+import AuthButtonClient from "./AuthButtonClient";
 
-export default function Navbar() {
+export default function Navbar({ authButton }: { authButton?: React.ReactNode }) {
   const pathname = usePathname();
 
   const navItems = [
@@ -56,6 +57,7 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           <ScriptToggle />
           <ThemeToggle />
+          {authButton || <AuthButtonClient user={null} />}
         </div>
       </div>
 

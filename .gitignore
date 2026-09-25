@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local database dumps (never commit)
+supabase_backup/
+*.backup.gz
+*.dump
+
+# Private context (Gemini chat exports)
+docs/context/

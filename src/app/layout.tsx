@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import AuthButton from "@/components/AuthButton";
 import { ScriptProvider } from "@/components/ScriptContext";
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 font-sans selection:bg-zinc-200 dark:selection:bg-zinc-800 transition-colors">
         <ScriptProvider>
-          <Navbar />
+          <Navbar authButton={<AuthButton />} />
           <main className="flex-1 flex flex-col w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {children}
           </main>
