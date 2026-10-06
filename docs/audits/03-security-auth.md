@@ -519,3 +519,65 @@ Record the chosen value next to each item. No limits, defaults or plan tiers are
 8. **Audit docs visibility:** keep them public, or put future audits in a private repo or gitignored path until the new project is hardened? Audits 01-02 are already public on `origin/phase2-auth`. **[S-15]**
 9. **Avatars:** are they a feature? If yes, uploaded to Supabase Storage (recommended), or hot-linked URLs? **[S-12]**
 10. **Sign-out scope:** all devices (current default) or this device only? **[S-19]**
+
+---
+
+## Decisions and status (owner, 2026-09-26)
+
+These decisions override the proposals and open questions above where they conflict. Nothing above this section has been edited.
+
+### Fixed
+
+- **S-01:** `next` and `eslint-config-next` bumped to 16.3.6 (exact pins) and `npm audit fix` applied. `npm audit` reports 0 vulnerabilities on both branches.
+  - `main`: commit `7b223d4` (deployed to production, verified Ready).
+  - `phase2-auth`: commit `45ae80a`.
+
+### Open question answers
+
+1. **Vercel:** GitHub integration connected (Hobby plan).
+   - Ignored Build Step set to `[ "$VERCEL_GIT_COMMIT_REF" != "main" ]`, so only `main` deploys. Verified: `45ae80a` on `phase2-auth` was not built.
+   - Deployment Protection: Vercel Authentication ENABLED with Standard Protection.
+   - The three pre-fix `phase2-auth` previews (`ca94f63`, `ef5b90f`, `53743d9`) still exist on `next@16.3.1`, but are protected by Vercel Authentication (not deleted).
+   - Env var scopes: deferred until the new Supabase project exists. The current values point to the deleted project.
+2. **Production domain:** `moolsutra.vercel.app` until launch.
+3. **Preview backend:** one Supabase project for development until launch; preview deployments off. A separate production project at launch.
+4. **Post throttle:** 5 posts per 10 minutes and 20 per day, enforced by a `BEFORE INSERT` trigger on `sutra_posts`. No new-account tier for now.
+5. **CAPTCHA:** Cloudflare Turnstile, added before sign-ups open to anyone besides the owner.
+6. **Password reset and account deletion:** both required before launch (deletion is needed for DPDP erasure).
+7. **Sign-up at launch:** closed until the fixes ship, then invite-only.
+8. **Audit docs:** stay public. Nothing they describe is live, and no new project launches until the fixes land.
+9. **Avatars:** dropped for now (S-12 becomes: remove the avatar rendering).
+10. **Sign-out scope:** keep the default (global).
+
+### Impact on the fix phase
+
+| ID | Status | Approach |
+|----|--------|----------|
+| S-01 | FIXED | `7b223d4` (`main`), `45ae80a` (`phase2-auth`). Pre-fix previews remain behind Vercel Authentication (OQ 1) |
+| S-02 | FIX PHASE | Throttle in the existing `sutra_posts_before_insert` trigger (5 per 10 minutes, 20 per day, generic error, `(author_id, created_at)` index); Turnstile `captchaToken` on sign-up, sign-in and reset before sign-ups open beyond the owner; email confirmation on; Supabase rate limits and custom SMTP recorded per the checklist (OQ 4, 5) |
+| S-03 | FIX PHASE | Replace the two inserts with `rpc('create_sutra', …)`; remove the handle input and show `profiles.handle`; `maxLength={500}`; remove the silent retry; generic error messages |
+| S-04 | FIX PHASE | `safeRedirect` exactly as written in S-04; failed exchange redirects to `/login?error=auth_callback` |
+| S-05 | FIX PHASE | Static headers plus `poweredByHeader: false` in `next.config.ts`; nonce CSP in `proxy.ts`, Report-Only first, with Turnstile origins added. HSTS without `preload` while the domain is `moolsutra.vercel.app` (OQ 2). `img-src` gets no external origins, since avatars are dropped (OQ 9) |
+| S-06 | FIX PHASE | Add `/auth/confirm` with `verifyOtp({ token_hash, type })`; point the "Confirm signup", "Reset password" and (for invite-only, OQ 7) "Invite user" templates at it; `emailRedirectTo` on the exact allow-listed URL. Template variable names and invite behaviour with sign-up disabled remain **UNVERIFIED** |
+| S-07 | FIX PHASE | Mostly answered by OQ 1 and OQ 3. Remaining: scope the new project's `NEXT_PUBLIC_SUPABASE_*` once it exists, and confirm fork-PR builds require authorization (not recorded; the Ignored Build Step checks only the branch name, so a fork branch named `main` would pass it, **UNVERIFIED**) |
+| S-08 | FIX PHASE | Before launch (OQ 6): reset via `resetPasswordForEmail` → `/auth/confirm` (`type=recovery`) → `/account/password` with `updateUser`; account deletion in a server-side route that checks `auth.getUser()` and uses a server-only admin client, paired with Audit 02 D-05 |
+| S-09 | FIX PHASE | Map auth error codes to fixed messages; sign-up always says "Check your email to continue"; Confirm email and Confirm phone both ON; generic page-level load errors |
+| S-10 | FIX PHASE | Rename to `src/proxy.ts`; copy the `setAll` cache headers onto the response; keep `getUser()` until asymmetric keys are confirmed |
+| S-11 | FIX PHASE | `cookieOptions: { secure: process.env.NODE_ENV === "production" }` on all three clients, plus HSTS (S-05) |
+| S-12 | FIX PHASE | Remove the avatar rendering from `AuthButtonClient.tsx` (OQ 9). No URL validation needed. Audit 02 effect below |
+| S-13 | FIX PHASE | Pass only `{ email }` (or `{ handle }` from `profiles`) with a typed prop; no `avatarUrl` (OQ 9) |
+| S-14 | FIX PHASE | Short notice with a privacy-page link at `/login` and the composer, stating that posts and handles are public and how to delete the account (S-08) |
+| S-15 | FIX PHASE | Docs stay public (OQ 8); the launch gate holds. Still to do: `SECURITY.md`, Dependabot alerts and security updates, secret scanning and push protection, `!.env.example` if wanted |
+| S-16 | FIX PHASE | Account deletion (OQ 6) introduces the first server secret: `import "server-only"` in `utils/supabase/server.ts` and the admin-client module; secret key without `NEXT_PUBLIC_`, never in Preview; remove the `supabaseClient.ts:1` `console.log` (F-12) |
+| S-17 | NO ACTION | The S-08 deletion route must check auth itself (covered there) |
+| S-18 | NO ACTION | Phase 2 search must pass input as RPC parameters (S-18 note) |
+| S-19 | NO ACTION | Global scope kept (OQ 10); short JWT expiry per the checklist |
+| S-20 | NO ACTION | Covered by S-02 and Audit 02 |
+
+**Effect of decision 9 on Audit 02 (`0002_profiles.sql`):**
+- `profiles.avatar_url` and its CHECK: remove.
+- `grant select` becomes `(id, handle, full_name, role, created_at)`.
+- `grant update` becomes `(handle, full_name, preferred_language)` (already without `native_dialect`, OQ 10).
+- `handle_new_user()`: insert `(id, handle, full_name)` only; drop the `avatar_url` `CASE`. `raw_user_meta_data ->> 'avatar_url'` is then ignored.
+- D-14 public profile columns become handle, name and role.
+- Avatars return later through a new migration with Supabase Storage (Audit 02 OQ 12), with `img-src` limited to the storage origin.
